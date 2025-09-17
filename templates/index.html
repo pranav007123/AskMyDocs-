@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Welcome - AskMyDocs{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-brain text-primary me-3"></i>
+                Welcome to AskMyDocs
+            </h1>
+            <p class="lead text-muted">
+                Upload your documents and ask questions powered by AI. 
+                Get intelligent answers based on your own content using 
+                Retrieval-Augmented Generation.
+            </p>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-upload fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Upload Documents</h5>
+                        <p class="card-text">
+                            Upload PDF, DOCX, or TXT files to build your knowledge base.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-search fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Ask Questions</h5>
+                        <p class="card-text">
+                            Search through your documents using natural language queries.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-robot fa-3x text-info mb-3"></i>
+                        <h5 class="card-title">AI Answers</h5>
+                        <p class="card-text">
+                            Get intelligent responses powered by GPT-4 and your documents.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <h3 class="mb-4">Get Started</h3>
+            <div class="d-grid gap-2 d-md-block">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-md-2">
+                    <i class="fas fa-user-plus me-2"></i>Create Account
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>How it works
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2"><strong>Register</strong> for a free account to get started</li>
+                        <li class="mb-2"><strong>Upload</strong> your documents (PDF, DOCX, or TXT files)</li>
+                        <li class="mb-2"><strong>Search</strong> using natural language questions</li>
+                        <li class="mb-0"><strong>Get answers</strong> based on your document content</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

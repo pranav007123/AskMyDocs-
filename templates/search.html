@@ -1,0 +1,244 @@
+{% extends "layout.html" %}
+
+{% block title %}Search - AskMyDocs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-search me-2"></i>Search Your Documents
+        </h2>
+    </div>
+</div>
+
+<!-- Search Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>Ask a Question
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="query" class="form-label">Your Question</label>
+                        <textarea class="form-control" id="query" name="query" rows="3" 
+                                  placeholder="Ask anything about your documents..." 
+                                  required>{{ query if query else '' }}</textarea>
+                        <div class="form-text">
+                            Try asking specific questions like "What is the main topic?" or "Summarize the key points"
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="document_id" class="form-label">Search Scope</label>
+                        <select class="form-select" id="document_id" name="document_id">
+                            <option value="all">All Documents</option>
+                            {% for doc in documents %}
+                                <option value="{{ doc.id }}">{{ doc.original_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results -->
+{% if answer %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-robot me-2"></i>AI Answer
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="answer-content" style="text-align: justify; line-height: 1.6; font-size: 1.05rem; padding: 10px;">
+                    {{ answer|replace('\n', '<br>')|safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Source Documents -->
+{% if sources %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-book-open me-2"></i>Source References
+                    <span class="badge bg-primary ms-2">{{ sources|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for source in sources %}
+                    <div class="col-12 mb-4">
+                        <div class="card source-card shadow-sm">
+                            <div class="card-header bg-light border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file-alt text-primary me-2"></i>
+                                        <h6 class="mb-0 fw-semibold text-dark">{{ source.filename }}</h6>
+                                    </div>
+                                    <span class="badge bg-primary bg-opacity-75">
+                                        Relevance: {{ "%.1f"|format(source.score * 100) }}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <blockquote class="mb-0">
+                                    <p class="mb-0" style="
+                                        text-align: justify; 
+                                        line-height: 1.7; 
+                                        font-size: 1.0rem; 
+                                        color: #495057;
+                                        text-indent: 1em;
+                                        margin-bottom: 0;
+                                        font-style: italic;
+                                        border-left: 4px solid #007bff;
+                                        padding-left: 15px;
+                                        background-color: #f8f9fa;
+                                        padding: 15px;
+                                        border-radius: 0 8px 8px 0;
+                                    ">{{ source.text }}</p>
+                                </blockquote>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- No Documents Message -->
+{% if not documents %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No Documents Available</h5>
+                <p class="text-muted mb-4">You need to upload documents before you can search them.</p>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Upload Documents
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Search Tips -->
+{% if documents and not answer %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Search Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle text-success me-1"></i>Good Questions:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>"What is the main topic of this document?"</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>"Summarize the key findings"</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>"What are the recommendations?"</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>"Explain the methodology used"</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle text-info me-1"></i>How it works:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Your question is converted to embeddings</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Most relevant document chunks are found</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>AI generates answer based on context</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Source references are provided</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-resize textarea
+    const textarea = document.getElementById('query');
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Focus on query input
+    textarea.focus();
+    
+    // Handle URL parameters for pre-selecting document
+    const urlParams = new URLSearchParams(window.location.search);
+    const docId = urlParams.get('doc_id');
+    if (docId) {
+        const selectElement = document.getElementById('document_id');
+        selectElement.value = docId;
+    }
+    
+    // Add loading state to search button
+    const searchForm = document.querySelector('form');
+    const searchButton = searchForm.querySelector('button[type="submit"]');
+    
+    searchForm.addEventListener('submit', function() {
+        searchButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+        searchButton.disabled = true;
+    });
+    
+    // Highlight search terms in results
+    const query = '{{ query|e }}';
+    if (query && query.length > 0) {
+        const answerContent = document.querySelector('.answer-content');
+        if (answerContent) {
+            highlightText(answerContent, query);
+        }
+        
+        const sourceCards = document.querySelectorAll('.source-card .card-text');
+        sourceCards.forEach(card => {
+            highlightText(card, query);
+        });
+    }
+});
+
+function highlightText(element, searchTerm) {
+    const words = searchTerm.toLowerCase().split(' ').filter(word => word.length > 2);
+    let html = element.innerHTML;
+    
+    words.forEach(word => {
+        const regex = new RegExp(`(${word})`, 'gi');
+        html = html.replace(regex, '<mark>$1</mark>');
+    });
+    
+    element.innerHTML = html;
+}
+</script>
+{% endblock %}

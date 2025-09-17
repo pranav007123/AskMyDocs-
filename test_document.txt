@@ -1,0 +1,21 @@
+Flask RAG Application Test Document
+
+This is a test document for the Flask RAG application. The application uses Retrieval-Augmented Generation (RAG) to answer questions based on uploaded documents.
+
+Key Features:
+- User authentication with Flask-Login
+- Document upload supporting PDF, DOCX, and TXT files
+- Text extraction and chunking
+- Vector embeddings using Sentence Transformers
+- FAISS for similarity search
+- AI-powered responses using Gemini API
+
+The system processes documents by:
+1. Extracting text from uploaded files
+2. Splitting text into chunks of approximately 500 tokens
+3. Generating embeddings for each chunk
+4. Storing embeddings in a FAISS index
+5. Retrieving relevant chunks for user queries
+6. Using Gemini to generate contextual responses
+
+This test document contains information about machine learning, natural language processing, and document retrieval systems.

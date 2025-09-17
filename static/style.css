@@ -1,0 +1,96 @@
+/* Custom styles for AskMyDocs Flask Application */
+
+/* Additional styling beyond Bootstrap */
+.upload-area {
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.source-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e3e6f0;
+}
+
+.source-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-color: #007bff;
+}
+
+.source-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+}
+
+.answer-content {
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+.answer-content mark {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Professional blockquote styling */
+.source-card blockquote {
+    position: relative;
+    margin: 0;
+}
+
+.source-card blockquote::before {
+    content: '"';
+    font-size: 4rem;
+    color: #007bff;
+    position: absolute;
+    left: -10px;
+    top: -20px;
+    font-family: Georgia, serif;
+    opacity: 0.3;
+}
+
+/* Improved relevance badge */
+.badge.bg-primary.bg-opacity-75 {
+    background-color: rgba(13, 110, 253, 0.85) !important;
+    font-weight: 600;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+/* Loading animation */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .upload-area {
+        padding: 1rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}

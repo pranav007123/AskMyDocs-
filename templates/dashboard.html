@@ -1,0 +1,211 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - AskMyDocs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </h2>
+            <span class="badge bg-primary fs-6">
+                {{ documents|length }} document{{ 's' if documents|length != 1 else '' }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>Upload New Document
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+                    <div class="upload-area mb-3">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h6>Choose a file to upload</h6>
+                        <p class="text-muted mb-3">Supported formats: PDF, DOCX, TXT (Max 16MB)</p>
+                        <input id="file-input" type="file" class="form-control" name="file" accept=".pdf,.docx,.txt" required>
+                        <div id="file-preview" class="small text-muted mt-2"></div>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Document
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Documents List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Your Documents
+                </h5>
+                {% if documents %}
+                    <a href="{{ url_for('search_page') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-search me-1"></i>Search All
+                    </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if documents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-file me-1"></i>Document</th>
+                                    <th><i class="fas fa-puzzle-piece me-1"></i>Chunks</th>
+                                    <th><i class="fas fa-calendar me-1"></i>Uploaded</th>
+                                    <th><i class="fas fa-cogs me-1"></i>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if doc.file_type == 'pdf' %}
+                                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                                            {% elif doc.file_type == 'docx' %}
+                                                <i class="fas fa-file-word text-primary me-2"></i>
+                                            {% else %}
+                                                <i class="fas fa-file-alt text-secondary me-2"></i>
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold">{{ doc.original_name }}</div>
+                                                <small class="text-muted">{{ doc.file_type.upper() }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ doc.chunk_count }}</span>
+                                    </td>
+                                    <td>
+                                        <small>{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('search_page') }}?doc_id={{ doc.id }}" 
+                                               class="btn btn-outline-primary" title="Search in this document">
+                                                <i class="fas fa-search"></i>
+                                            </a>
+                                            <a href="{{ url_for('download_document', document_id=doc.id) }}" 
+                                               class="btn btn-outline-success" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <a href="{{ url_for('delete_document', document_id=doc.id) }}" 
+                                               class="btn btn-outline-danger" title="Delete"
+                                               onclick="return confirm('Are you sure you want to delete {{ doc.original_name }}?')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No documents uploaded yet</h5>
+                        <p class="text-muted">Upload your first document to get started with AI-powered search.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+{% if documents %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-file-alt fa-2x text-primary mb-2"></i>
+                <h5>{{ documents|length }}</h5>
+                <small class="text-muted">Total Documents</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-puzzle-piece fa-2x text-info mb-2"></i>
+                <h5>{{ documents|sum(attribute='chunk_count') }}</h5>
+                <small class="text-muted">Total Chunks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-calendar fa-2x text-success mb-2"></i>
+                <h5>{{ documents[0].uploaded_at.strftime('%b %d') if documents else 'N/A' }}</h5>
+                <small class="text-muted">Latest Upload</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload preview
+    const fileInput = document.getElementById('file-input');
+    const uploadArea = document.querySelector('.upload-area');
+    const filePreview = document.getElementById('file-preview');
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            filePreview.innerHTML = `<i class="fas fa-file"></i> Selected: <strong>${fileName}</strong> <span class="text-muted">(${fileSize} MB)</span>`;
+        } else {
+            filePreview.textContent = '';
+        }
+    });
+    
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#007bff';
+        uploadArea.style.backgroundColor = '#f8f9ff';
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.style.backgroundColor = '';
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.style.backgroundColor = '';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+});
+</script>
+{% endblock %}
