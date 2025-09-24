@@ -58,13 +58,13 @@
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-success text-white">
+            <div class="card-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none;">
                 <h5 class="mb-0">
                     <i class="fas fa-robot me-2"></i>AI Answer
                 </h5>
             </div>
-            <div class="card-body">
-                <div class="answer-content" style="text-align: justify; line-height: 1.6; font-size: 1.05rem; padding: 10px;">
+            <div class="card-body p-0">
+                <div class="answer-content">
                     {{ answer|replace('\n', '<br>')|safe }}
                 </div>
             </div>
@@ -101,21 +101,8 @@
                                 </div>
                             </div>
                             <div class="card-body p-4">
-                                <blockquote class="mb-0">
-                                    <p class="mb-0" style="
-                                        text-align: justify; 
-                                        line-height: 1.7; 
-                                        font-size: 1.0rem; 
-                                        color: #495057;
-                                        text-indent: 1em;
-                                        margin-bottom: 0;
-                                        font-style: italic;
-                                        border-left: 4px solid #007bff;
-                                        padding-left: 15px;
-                                        background-color: #f8f9fa;
-                                        padding: 15px;
-                                        border-radius: 0 8px 8px 0;
-                                    ">{{ source.text }}</p>
+                                <blockquote class="mb-0" style="text-align: justify; line-height: 1.7; font-style: italic; padding: 15px; background: rgba(248, 249, 250, 0.8); border-left: 4px solid #007bff; margin: 0;">
+                                    {{ source.highlighted_text|safe if source.highlighted_text else source.text }}
                                 </blockquote>
                             </div>
                         </div>

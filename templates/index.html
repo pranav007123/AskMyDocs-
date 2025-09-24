@@ -5,48 +5,54 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
-        <div class="text-center mb-5">
-            <h1 class="display-4 mb-4">
-                <i class="fas fa-brain text-primary me-3"></i>
+        <div class="text-center mb-5 fade-in-up">
+            <h1 class="display-4 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                <i class="fas fa-brain me-3" style="background: linear-gradient(45deg, #ffd700, #ffed4e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
                 Welcome to AskMyDocs
             </h1>
-            <p class="lead text-muted">
+            <p class="lead" style="color: #2c3e50; font-weight: 500;">
                 Upload your documents and ask questions powered by AI. 
                 Get intelligent answers based on your own content using 
-                Retrieval-Augmented Generation.
+                <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;">Retrieval-Augmented Generation</span>.
             </p>
         </div>
 
         <div class="row g-4 mb-5">
-            <div class="col-md-4">
+            <div class="col-md-4 fade-in-up" style="animation-delay: 0.1s;">
                 <div class="card h-100 text-center">
                     <div class="card-body">
-                        <i class="fas fa-upload fa-3x text-primary mb-3"></i>
-                        <h5 class="card-title">Upload Documents</h5>
-                        <p class="card-text">
+                        <div class="mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                            <i class="fas fa-upload fa-2x text-white"></i>
+                        </div>
+                        <h5 class="card-title" style="color: #2c3e50; font-weight: 600;">Upload Documents</h5>
+                        <p class="card-text" style="color: #6c757d;">
                             Upload PDF, DOCX, or TXT files to build your knowledge base.
                         </p>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 fade-in-up" style="animation-delay: 0.2s;">
                 <div class="card h-100 text-center">
                     <div class="card-body">
-                        <i class="fas fa-search fa-3x text-success mb-3"></i>
-                        <h5 class="card-title">Ask Questions</h5>
-                        <p class="card-text">
+                        <div class="mb-3" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                            <i class="fas fa-search fa-2x text-white"></i>
+                        </div>
+                        <h5 class="card-title" style="color: #2c3e50; font-weight: 600;">Ask Questions</h5>
+                        <p class="card-text" style="color: #6c757d;">
                             Search through your documents using natural language queries.
                         </p>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 fade-in-up" style="animation-delay: 0.3s;">
                 <div class="card h-100 text-center">
                     <div class="card-body">
-                        <i class="fas fa-robot fa-3x text-info mb-3"></i>
-                        <h5 class="card-title">AI Answers</h5>
-                        <p class="card-text">
-                            Get intelligent responses powered by GPT-4 and your documents.
+                        <div class="mb-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                            <i class="fas fa-robot fa-2x text-white"></i>
+                        </div>
+                        <h5 class="card-title" style="color: #2c3e50; font-weight: 600;">AI Answers</h5>
+                        <p class="card-text" style="color: #6c757d;">
+                            Get intelligent responses powered by Gemini and your documents.
                         </p>
                     </div>
                 </div>

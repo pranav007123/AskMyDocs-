@@ -18,9 +18,9 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from werkzeug.utils import secure_filename
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate
-from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 from models import db, User, Document
@@ -188,6 +188,76 @@ def add_document_to_faiss(user_id: int, document_id: int, chunks: List[str], fil
     
     return len(chunks)
 
+def highlight_relevant_content(text: str, query: str) -> str:
+    """Highlight content most relevant to the query using semantic similarity."""
+    import re
+    from sentence_transformers import util
+    
+    # Split text into sentences
+    sentences = re.split(r'[.!?]+', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    if not sentences or not query.strip():
+        return text
+    
+    try:
+        # Generate embeddings for query and sentences
+        query_embedding = embedding_model.encode([query])
+        sentence_embeddings = embedding_model.encode(sentences)
+        
+        # Calculate similarity scores
+        similarities = util.cos_sim(query_embedding, sentence_embeddings)[0]
+        
+        # Find sentences with high similarity (top 30% or score > 0.3)
+        threshold = max(0.3, similarities.mean() + similarities.std() * 0.5)
+        relevant_sentences = []
+        
+        for i, (sentence, score) in enumerate(zip(sentences, similarities)):
+            if score > threshold:
+                relevant_sentences.append(sentence)
+        
+        # If no sentences meet threshold, take top 2 most similar
+        if not relevant_sentences:
+            top_indices = similarities.argsort(descending=True)[:2]
+            relevant_sentences = [sentences[i] for i in top_indices if i < len(sentences)]
+        
+        # Highlight relevant sentences in the original text
+        highlighted_text = text
+        for sentence in relevant_sentences:
+            if sentence in highlighted_text:
+                highlighted_sentence = f'<mark class="search-highlight">{sentence}</mark>'
+                highlighted_text = highlighted_text.replace(sentence, highlighted_sentence)
+        
+        return highlighted_text
+        
+    except Exception as e:
+        print(f"Error in semantic highlighting: {str(e)}")
+        # Fallback to keyword highlighting
+        return highlight_keywords(text, query)
+
+def highlight_keywords(text: str, query: str) -> str:
+    """Fallback keyword highlighting."""
+    import re
+    
+    # Extract key terms from query (nouns, verbs, important words)
+    query_words = [word.strip().lower() for word in re.split(r'[^\w]+', query) 
+                   if word.strip() and len(word) > 2]
+    
+    # Filter out common stop words
+    stop_words = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'what', 'how', 'why', 'when', 'where'}
+    query_words = [word for word in query_words if word not in stop_words]
+    
+    if not query_words:
+        return text
+    
+    # Create pattern for important words
+    pattern = r'\b(' + '|'.join(re.escape(word) for word in query_words) + r')\b'
+    
+    def replace_match(match):
+        return f'<mark class="search-highlight">{match.group(0)}</mark>'
+    
+    return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
+
 def search_faiss_index(user_id: int, query: str, k: int = 5, document_id: int = None):
     """Search FAISS index for relevant chunks."""
     try:
@@ -212,8 +282,12 @@ def search_faiss_index(user_id: int, query: str, k: int = 5, document_id: int = 
                 if document_id and chunk_metadata['document_id'] != document_id:
                     continue
                 
+                # Highlight semantically relevant content
+                highlighted_text = highlight_relevant_content(chunk_metadata['text'], query)
+                
                 results.append({
-                    'text': chunk_metadata['text'],
+                    'text': chunk_metadata['text'],  # Original text for LLM
+                    'highlighted_text': highlighted_text,  # Highlighted text for display
                     'filename': chunk_metadata['filename'],
                     'document_id': chunk_metadata['document_id'],
                     'score': float(score)
@@ -392,39 +466,62 @@ def dashboard():
 @login_required
 def upload_file():
     """Handle file upload."""
-    app.logger.info('Upload attempt by user_id=%s', getattr(current_user, 'id', None))
-    if 'file' not in request.files:
-        flash('No file selected.', 'error')
-        app.logger.warning('Upload failed: no file part in request')
-        return redirect(url_for('dashboard'))
-    
-    file = request.files['file']
-    if file.filename == '':
-        flash('No file selected.', 'error')
-        app.logger.warning('Upload failed: empty filename')
+    try:
+        app.logger.info('Upload attempt by user_id=%s', getattr(current_user, 'id', None))
+        print(f"[UPLOAD] Request files: {list(request.files.keys())}")
+        print(f"[UPLOAD] Request form: {dict(request.form)}")
+        
+        if 'file' not in request.files:
+            flash('No file selected.', 'error')
+            app.logger.warning('Upload failed: no file part in request')
+            return redirect(url_for('dashboard'))
+        
+        file = request.files['file']
+        print(f"[UPLOAD] File object: {file}")
+        print(f"[UPLOAD] Filename: {file.filename}")
+        
+        if file.filename == '':
+            flash('No file selected.', 'error')
+            app.logger.warning('Upload failed: empty filename')
+            return redirect(url_for('dashboard'))
+    except Exception as e:
+        print(f"[UPLOAD] Error in initial checks: {str(e)}")
+        flash(f'Upload error: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
     
     if file and allowed_file(file.filename):
-        # Generate unique filename
-        original_filename = secure_filename(file.filename)
-        file_extension = original_filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"{uuid.uuid4()}.{file_extension}"
-        
-        # Save file
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        try:
+            print(f"[UPLOAD] Processing file: {file.filename}")
+            # Generate unique filename
+            original_filename = secure_filename(file.filename)
+            file_extension = original_filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"{uuid.uuid4()}.{file_extension}"
+            
+            print(f"[UPLOAD] Original: {original_filename}, Unique: {unique_filename}")
+            
+            # Save file
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            print(f"[UPLOAD] Saving to: {file_path}")
+        except Exception as e:
+            print(f"[UPLOAD] Error in file processing setup: {str(e)}")
+            flash(f'Error processing file: {str(e)}', 'error')
+            return redirect(url_for('dashboard'))
         app.logger.info('Saving upload to %s', file_path)
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         file.save(file_path)
         app.logger.info('Saved file: %s (size=%s bytes)', file_path, os.path.getsize(file_path) if os.path.exists(file_path) else 'N/A')
         
         try:
+            print(f"[UPLOAD] Extracting text from {file_extension} file...")
             # Extract text
             text = extract_text_from_file(file_path, file_extension)
+            print(f"[UPLOAD] Extracted {len(text)} characters")
             
             if not text.strip():
-                flash('Could not extract text from the file.', 'error')
-                os.remove(file_path)
-                app.logger.error('Text extraction returned empty content for %s', file_path)
+                flash('Could not extract text from the file. Please ensure it contains readable text.', 'error')
+                app.logger.warning('Upload failed: no text extracted from %s', original_filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
                 return redirect(url_for('dashboard'))
             
             # Create document record
@@ -525,33 +622,58 @@ def search():
     query = request.form.get('query', '').strip()
     document_id = request.form.get('document_id')
     
+    print(f"[SEARCH] User {current_user.id} searching for: '{query}'")
+    
     if not query:
         flash('Please enter a search query.', 'error')
         return redirect(url_for('search_page'))
     
     try:
+        # Check if user has any documents
+        user_documents = Document.query.filter_by(user_id=current_user.id).all()
+        print(f"[SEARCH] User has {len(user_documents)} documents")
+        
+        if not user_documents:
+            flash('You need to upload documents before searching. Please upload some documents first.', 'warning')
+            return redirect(url_for('dashboard'))
+        
         # Convert document_id to int if provided
         doc_id = int(document_id) if document_id and document_id != 'all' else None
+        print(f"[SEARCH] Searching in document_id: {doc_id}")
         
         # Search FAISS index
         results = search_faiss_index(current_user.id, query, k=5, document_id=doc_id)
+        print(f"[SEARCH] Found {len(results)} results")
         
         if not results:
-            flash('No relevant information found for your query.', 'info')
-            return render_template('search.html', 
-                                 documents=Document.query.filter_by(user_id=current_user.id).all(),
+            # Check if FAISS index exists and has content
+            index, metadata = load_or_create_faiss_index(current_user.id)
+            print(f"[SEARCH] FAISS index has {index.ntotal} vectors, {len(metadata)} metadata entries")
+            
+            if index.ntotal == 0:
+                flash('Your documents are still being processed. Please try again in a moment, or re-upload your documents.', 'warning')
+            else:
+                flash('No relevant information found for your query. Try rephrasing your question or using different keywords.', 'info')
+            
+            return render_template('search.html',
+                                 documents=user_documents,
                                  query=query)
         
         # Generate RAG response
+        print(f"[SEARCH] Generating RAG response...")
         answer = generate_rag_response(query, results)
+        print(f"[SEARCH] Generated answer: {len(answer)} characters")
         
         return render_template('search.html',
-                             documents=Document.query.filter_by(user_id=current_user.id).all(),
+                             documents=user_documents,
                              query=query,
                              answer=answer,
                              sources=results)
     
     except Exception as e:
+        print(f"[SEARCH] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f'Error processing search: {str(e)}', 'error')
         return redirect(url_for('search_page'))
 

@@ -9,12 +9,28 @@ def check_setup():
     """Check if the application is properly set up."""
     load_dotenv()
     
-    # Check for OpenAI API key
+    # Determine LLM provider and validate required API key
+    llm_provider = os.getenv('LLM_PROVIDER', 'openai').lower().strip()
     openai_key = os.getenv('OPENAI_API_KEY')
-    if not openai_key or openai_key == 'your_openai_api_key_here':
-        print("❌ Error: OpenAI API key not configured!")
-        print("Please add your OpenAI API key to the .env file:")
-        print("OPENAI_API_KEY=your_actual_api_key_here")
+    gemini_key = os.getenv('GEMINI_API_KEY')
+    print(f"[SETUP] LLM_PROVIDER: {llm_provider}")
+    print(f"[SETUP] OPENAI_API_KEY configured: {bool(openai_key)}")
+    print(f"[SETUP] GEMINI_API_KEY configured: {bool(gemini_key)}")
+
+    if llm_provider == 'openai':
+        if not openai_key or openai_key == 'your_openai_api_key_here':
+            print("❌ Error: OpenAI API key not configured!")
+            print("Please add your OpenAI API key to the .env file:")
+            print("OPENAI_API_KEY=your_actual_api_key_here")
+            return False
+    elif llm_provider == 'gemini':
+        if not gemini_key:
+            print("❌ Error: Gemini selected but GEMINI_API_KEY not configured!")
+            print("Please add your Gemini API key to the .env file:")
+            print("GEMINI_API_KEY=your_actual_api_key_here")
+            return False
+    else:
+        print(f"❌ Error: Unknown LLM_PROVIDER '{llm_provider}'. Use 'openai' or 'gemini'.")
         return False
     
     # Check for required files

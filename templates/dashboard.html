@@ -26,16 +26,24 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
-                    <div class="upload-area mb-3">
+                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" id="upload-form">
+                    <div class="upload-area mb-3" id="upload-area">
                         <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                         <h6>Choose a file to upload</h6>
                         <p class="text-muted mb-3">Supported formats: PDF, DOCX, TXT (Max 16MB)</p>
-                        <input id="file-input" type="file" class="form-control" name="file" accept=".pdf,.docx,.txt" required>
+                        
+                        <!-- Hidden file input -->
+                        <input id="file-input" type="file" name="file" accept=".pdf,.docx,.txt" required style="display: none;">
+                        
+                        <!-- Custom file button -->
+                        <button type="button" class="btn btn-outline-primary mb-3" onclick="document.getElementById('file-input').click();">
+                            <i class="fas fa-folder-open me-2"></i>Choose File
+                        </button>
+                        
                         <div id="file-preview" class="small text-muted mt-2"></div>
                     </div>
                     <div class="text-center">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="upload-btn" disabled>
                             <i class="fas fa-upload me-2"></i>Upload Document
                         </button>
                     </div>
@@ -166,44 +174,105 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // File upload preview
+    // File upload elements
     const fileInput = document.getElementById('file-input');
-    const uploadArea = document.querySelector('.upload-area');
+    const uploadArea = document.getElementById('upload-area');
     const filePreview = document.getElementById('file-preview');
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadForm = document.getElementById('upload-form');
 
+    // File input change handler
     fileInput.addEventListener('change', function(e) {
         const file = e.target.files && e.target.files[0];
+        console.log('File selected:', file);
+        
         if (file) {
             const fileName = file.name;
             const fileSize = (file.size / 1024 / 1024).toFixed(2);
-            filePreview.innerHTML = `<i class="fas fa-file"></i> Selected: <strong>${fileName}</strong> <span class="text-muted">(${fileSize} MB)</span>`;
+            const fileType = file.name.split('.').pop().toLowerCase();
+            
+            // Check file type
+            const allowedTypes = ['pdf', 'docx', 'txt'];
+            if (!allowedTypes.includes(fileType)) {
+                alert('Please select a PDF, DOCX, or TXT file.');
+                fileInput.value = '';
+                return;
+            }
+            
+            // Check file size (16MB limit)
+            if (file.size > 16 * 1024 * 1024) {
+                alert('File size must be less than 16MB.');
+                fileInput.value = '';
+                return;
+            }
+            
+            // Show file info
+            let icon = 'fas fa-file';
+            if (fileType === 'pdf') icon = 'fas fa-file-pdf text-danger';
+            else if (fileType === 'docx') icon = 'fas fa-file-word text-primary';
+            else if (fileType === 'txt') icon = 'fas fa-file-alt text-secondary';
+            
+            filePreview.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="${icon} me-2"></i>
+                    Selected: <strong>${fileName}</strong> 
+                    <span class="text-muted">(${fileSize} MB)</span>
+                </div>
+            `;
+            
+            // Enable upload button
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload Document';
         } else {
-            filePreview.textContent = '';
+            filePreview.innerHTML = '';
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload Document';
         }
+    });
+    
+    // Form submission handler
+    uploadForm.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('Please select a file first.');
+            return;
+        }
+        
+        // Show loading state
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
     });
     
     // Drag and drop functionality
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
-        uploadArea.style.borderColor = '#007bff';
+        uploadArea.classList.add('border-primary');
         uploadArea.style.backgroundColor = '#f8f9ff';
     });
     
     uploadArea.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.classList.remove('border-primary');
         uploadArea.style.backgroundColor = '';
     });
     
     uploadArea.addEventListener('drop', function(e) {
         e.preventDefault();
-        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.classList.remove('border-primary');
         uploadArea.style.backgroundColor = '';
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
             fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+    
+    // Click on upload area to select file
+    uploadArea.addEventListener('click', function(e) {
+        if (e.target === uploadArea || e.target.closest('.upload-area')) {
+            fileInput.click();
         }
     });
 });
