@@ -17,9 +17,10 @@ import docx
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from functools import wraps
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
@@ -74,6 +75,42 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx'}
 def load_user(user_id):
     """Load user for Flask-Login."""
     return User.query.get(int(user_id))
+
+def admin_required(f):
+    """Decorator to require admin privileges."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login'))
+        if not current_user.is_admin:
+            flash('You do not have permission to access this page.', 'error')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def validate_password(password):
+    """Validate password strength.
+    Returns (is_valid, error_message)
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    
+    if not any(char.isupper() for char in password):
+        return False, "Password must contain at least one uppercase letter."
+    
+    if not any(char.islower() for char in password):
+        return False, "Password must contain at least one lowercase letter."
+    
+    if not any(char.isdigit() for char in password):
+        return False, "Password must contain at least one digit."
+    
+    # Optional: Check for special characters
+    special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    if not any(char in special_chars for char in password):
+        return False, "Password must contain at least one special character (!@#$%^&* etc.)."
+    
+    return True, "Password is strong."
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
@@ -337,15 +374,99 @@ def generate_rag_response_gemini(query: str, context_chunks: List[Dict]) -> str:
     if not GEMINI_API_KEY:
         return "Gemini API key not configured. Please set GEMINI_API_KEY in .env."
     prompt = _build_context_and_prompt(query, context_chunks)
+    # Try multiple candidate models for better compatibility
+    candidates = choose_gemini_model(candidates_only=True)
+    last_err = None
+    for model_name in candidates:
+        try:
+            print(f"[RAG] Trying Gemini model: {model_name}")
+            model = genai.GenerativeModel(model_name)
+            resp = model.generate_content(prompt)
+            return (getattr(resp, 'text', '') or '').strip() or str(resp)
+        except Exception as e:
+            last_err = e
+            print(f"[Gemini] Model '{model_name}' failed: {e}")
+            # If rate-limited by Gemini and OpenAI is available, fall back to OpenAI automatically
+            err_text = str(e)
+            if ('429' in err_text or 'rate' in err_text.lower()) and (openai.api_key):
+                print("[RAG] Gemini rate-limited. Falling back to OpenAI...")
+                try:
+                    return generate_rag_response_openai(query, context_chunks)
+                except Exception as openai_err:
+                    print(f"[OpenAI Fallback] Error: {openai_err}")
+                    # If fallback also fails, continue trying other Gemini candidates
+            continue
+    # If all candidates failed, surface the last error
+    err_text = str(last_err)
+    if ('429' in err_text or 'rate' in err_text.lower()) and not openai.api_key:
+        return (
+            "Gemini is currently rate-limited for this project. "
+            "Add OPENAI_API_KEY in .env and set LLM_PROVIDER=openai to continue immediately, "
+            "or retry after a short wait."
+        )
+    return f"Sorry, I encountered an error while generating the response: {err_text}"
+
+def choose_gemini_model(candidates_only: bool = False):
+    """Pick an available Gemini model that supports text generation.
+    Strategy:
+    1) Prefer a supported model from the API that includes 'generateContent'.
+    2) Fallback through a list of known good model IDs.
+    """
     try:
-        # Choose a cost-effective default; can be changed to 'gemini-1.5-pro'
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        resp = model.generate_content(prompt)
-        # google-generativeai returns a response object with .text
-        return (resp.text or '').strip() if hasattr(resp, 'text') else str(resp)
+        # Prefer models that support text generation
+        available = []
+        try:
+            models = list(genai.list_models())
+            for m in models:
+                methods = set(getattr(m, 'supported_generation_methods', []) or [])
+                if 'generateContent' in methods or 'generate_content' in methods:
+                    available.append(getattr(m, 'name', ''))
+        except Exception as e:
+            print(f"[Gemini] Could not list models: {e}")
+
+        # Preferred order: latest first
+        preferred = [
+            'gemini-1.5-flash-latest',
+            'gemini-1.5-pro-latest',
+            'gemini-1.5-flash-8b',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+            'gemini-1.0-pro',
+        ]
+
+        for name in preferred:
+            if name in available:
+                return preferred if candidates_only else name
+
+        # If listing failed or names differ (some APIs return fully qualified names)
+        # try constructing from fully qualified names too
+        fq_preferred = [
+            'models/gemini-1.5-flash-latest',
+            'models/gemini-1.5-pro-latest',
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-flash-8b',
+            'models/gemini-1.5-pro',
+            'models/gemini-1.0-pro',
+        ]
+        for name in fq_preferred:
+            if name in available:
+                return (preferred + fq_preferred) if candidates_only else name
+
+        # Final fallback: return all candidates: preferred + fq_preferred + first available
+        if available:
+            return (preferred + fq_preferred + available) if candidates_only else available[0]
     except Exception as e:
-        print(f"Error generating response (Gemini): {str(e)}")
-        return f"Sorry, I encountered an error while generating the response: {str(e)}"
+        print(f"[Gemini] Model selection error: {e}")
+
+    # If everything fails, return sensible candidates
+    fallback_list = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro-latest',
+        'models/gemini-1.5-pro',
+        'models/gemini-1.5-flash',
+        'gemini-1.0-pro',
+    ]
+    return fallback_list if candidates_only else fallback_list[0]
 
 def generate_rag_response(query: str, context_chunks: List[Dict]) -> str:
     """Generate response using the selected LLM provider."""
@@ -404,15 +525,45 @@ def index():
 def register():
     """User registration."""
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
         
-        # Validation
+        # Validate inputs
+        if not username or not email or not password:
+            flash('All fields are required.', 'error')
+            return render_template('register.html')
+        
+        # Validate username length
+        if len(username) < 3:
+            flash('Username must be at least 3 characters long.', 'error')
+            return render_template('register.html')
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            flash('Please enter a valid email address.', 'error')
+            return render_template('register.html')
+        
+        # Validate password confirmation
+        if confirm_password and password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template('register.html')
+        
+        # Validate password strength
+        is_valid, message = validate_password(password)
+        if not is_valid:
+            flash(message, 'error')
+            return render_template('register.html')
+        
+        # Check if username exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists.', 'error')
             return render_template('register.html')
         
+        # Check if email exists
         if User.query.filter_by(email=email).first():
             flash('Email already registered.', 'error')
             return render_template('register.html')
@@ -694,6 +845,125 @@ def download_document(document_id):
         return redirect(url_for('dashboard'))
     
     return send_file(file_path, as_attachment=True, download_name=document.original_name)
+
+# Admin Routes
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    """Admin dashboard with analytics."""
+    # Get statistics
+    total_users = User.query.count()
+    total_documents = Document.query.count()
+    total_chunks = db.session.query(db.func.sum(Document.chunk_count)).scalar() or 0
+    
+    # Recent users (last 10)
+    recent_users = User.query.order_by(User.created_at.desc()).limit(10).all()
+    
+    # Recent documents (last 10)
+    recent_documents = Document.query.order_by(Document.uploaded_at.desc()).limit(10).all()
+    
+    # User statistics
+    users_with_docs = db.session.query(User).join(Document).distinct().count()
+    users_without_docs = total_users - users_with_docs
+    
+    # Document statistics by type
+    doc_stats = db.session.query(
+        Document.file_type,
+        db.func.count(Document.id).label('count')
+    ).group_by(Document.file_type).all()
+    
+    # Top users by document count
+    top_users = db.session.query(
+        User,
+        db.func.count(Document.id).label('doc_count')
+    ).join(Document).group_by(User.id).order_by(db.desc('doc_count')).limit(5).all()
+    
+    return render_template('admin_dashboard.html',
+                         total_users=total_users,
+                         total_documents=total_documents,
+                         total_chunks=total_chunks,
+                         recent_users=recent_users,
+                         recent_documents=recent_documents,
+                         users_with_docs=users_with_docs,
+                         users_without_docs=users_without_docs,
+                         doc_stats=doc_stats,
+                         top_users=top_users)
+
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    """Admin page to view all users."""
+    users = User.query.order_by(User.created_at.desc()).all()
+    
+    # Get document count for each user
+    user_stats = []
+    for user in users:
+        doc_count = Document.query.filter_by(user_id=user.id).count()
+        chunk_count = db.session.query(db.func.sum(Document.chunk_count)).filter(
+            Document.user_id == user.id
+        ).scalar() or 0
+        user_stats.append({
+            'user': user,
+            'doc_count': doc_count,
+            'chunk_count': chunk_count
+        })
+    
+    return render_template('admin_users.html', user_stats=user_stats)
+
+@app.route('/admin/user/<int:user_id>/toggle_admin', methods=['POST'])
+@login_required
+@admin_required
+def toggle_admin(user_id):
+    """Toggle admin status for a user."""
+    if user_id == current_user.id:
+        flash('You cannot change your own admin status.', 'error')
+        return redirect(url_for('admin_users'))
+    
+    user = User.query.get_or_404(user_id)
+    user.is_admin = not user.is_admin
+    db.session.commit()
+    
+    status = 'admin' if user.is_admin else 'regular user'
+    flash(f'User {user.username} is now a {status}.', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(user_id):
+    """Delete a user and all their documents."""
+    if user_id == current_user.id:
+        flash('You cannot delete your own account from admin panel.', 'error')
+        return redirect(url_for('admin_users'))
+    
+    user = User.query.get_or_404(user_id)
+    username = user.username
+    
+    try:
+        # Delete all user's documents and FAISS indexes
+        documents = Document.query.filter_by(user_id=user_id).all()
+        for doc in documents:
+            # Remove file
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], doc.filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        # Remove FAISS index directory
+        user_faiss_dir = os.path.join(app.config['FAISS_FOLDER'], str(user_id))
+        if os.path.exists(user_faiss_dir):
+            shutil.rmtree(user_faiss_dir)
+        
+        # Delete user (cascade will delete documents)
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'User {username} and all associated data deleted successfully.', 'success')
+    except Exception as e:
+        flash(f'Error deleting user: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_users'))
 
 if __name__ == '__main__':
     create_directories()

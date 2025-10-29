@@ -1,0 +1,229 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-shield-alt"></i> Admin Dashboard</h2>
+            <p class="text-muted">System overview and analytics</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('admin_users') }}" class="btn btn-primary">
+                <i class="fas fa-users"></i> Manage Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                    <h3 class="mb-0">{{ total_users }}</h3>
+                    <p class="text-muted mb-0">Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-file-alt fa-3x text-success mb-3"></i>
+                    <h3 class="mb-0">{{ total_documents }}</h3>
+                    <p class="text-muted mb-0">Total Documents</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-cubes fa-3x text-info mb-3"></i>
+                    <h3 class="mb-0">{{ total_chunks }}</h3>
+                    <p class="text-muted mb-0">Total Chunks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-3x text-warning mb-3"></i>
+                    <h3 class="mb-0">{{ (total_chunks / total_documents)|round(1) if total_documents > 0 else 0 }}</h3>
+                    <p class="text-muted mb-0">Avg Chunks/Doc</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> User Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 text-center">
+                            <h4 class="text-success">{{ users_with_docs }}</h4>
+                            <p class="text-muted">Active Users</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <h4 class="text-secondary">{{ users_without_docs }}</h4>
+                            <p class="text-muted">Inactive Users</p>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ (users_with_docs / total_users * 100) if total_users > 0 else 0 }}%">
+                            {{ ((users_with_docs / total_users * 100)|round(1)) if total_users > 0 else 0 }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-archive"></i> Documents by Type</h5>
+                </div>
+                <div class="card-body">
+                    {% if doc_stats %}
+                        {% for doc_type, count in doc_stats %}
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="fas fa-file-{{ doc_type }}"></i> {{ doc_type.upper() }}</span>
+                                <strong>{{ count }}</strong>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-info" role="progressbar" 
+                                     style="width: {{ (count / total_documents * 100) if total_documents > 0 else 0 }}%">
+                                    {{ ((count / total_documents * 100)|round(1)) if total_documents > 0 else 0 }}%
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No documents yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Users -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-trophy"></i> Top Users by Documents</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Documents</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user, doc_count in top_users %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ loop.index }}</span></td>
+                                    <td><strong>{{ user.username }}</strong></td>
+                                    <td>{{ user.email }}</td>
+                                    <td><span class="badge bg-success">{{ doc_count }} docs</span></td>
+                                    <td>
+                                        {% if user.is_admin %}
+                                        <span class="badge bg-danger">Admin</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">User</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                        <p class="text-muted">No users with documents yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Users -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user-clock"></i> Recent Users</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_users %}
+                    <div class="list-group list-group-flush">
+                        {% for user in recent_users %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">{{ user.username }}</h6>
+                                    <small class="text-muted">{{ user.email }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    {% if user.is_admin %}
+                                    <br><span class="badge bg-danger">Admin</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                        <p class="text-muted">No users yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Documents -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Documents</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_documents %}
+                    <div class="list-group list-group-flush">
+                        {% for doc in recent_documents %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0"><i class="fas fa-file-{{ doc.file_type }}"></i> {{ doc.original_name }}</h6>
+                                    <small class="text-muted">by {{ doc.user.username }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    <br><span class="badge bg-info">{{ doc.chunk_count }} chunks</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                        <p class="text-muted">No documents yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
